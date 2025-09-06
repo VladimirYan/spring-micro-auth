@@ -1,8 +1,11 @@
 spring:
+  profiles:
+    active: dev
+
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:auth_db}
-    username: ${DB_USER:auth}
-    password: ${DB_PASSWORD:authpass}
+    url: jdbc:postgresql://localhost:5433/auth_db
+    username: auth
+    password: authpass
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -17,11 +20,27 @@ spring:
     locations: classpath:db/migration
     baseline-on-migrate: true
 
-  logging:
-    level:
-      root: INFO
-      org.hibernate.SQL: DEBUG
-
   server:
     port: ${SERVER_PORT:8080}
 
+  jwt:
+    secret: ${JWT_SECRET:change_me_to_a_strong_secret}
+    access-token-expiration-ms: ${JWT_ACCESS_EXPIRATION_MS:900000}
+    refresh-token-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:2592000000}
+
+logging:
+  level:
+    root: INFO
+    org.hibernate.SQL: DEBUG
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
