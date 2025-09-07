@@ -3,9 +3,9 @@ spring:
     active: dev
 
   datasource:
-    url: jdbc:postgresql://localhost:5433/auth_db
-    username: auth
-    password: authpass
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:auth_db}
+    username: ${DB_USER:auth}
+    password: ${DB_PASSWORD:authpass}
     driver-class-name: org.postgresql.Driver
 
   jpa:
