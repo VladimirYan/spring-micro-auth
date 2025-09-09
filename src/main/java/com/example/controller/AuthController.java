@@ -2,6 +2,7 @@ package com.example.controller;
 
 import com.example.dto.*;
 import com.example.entity.RefreshToken;
+import com.example.entity.Role;
 import com.example.entity.User;
 import com.example.security.JwtUtils;
 import com.example.service.RefreshTokenService;
@@ -50,7 +51,7 @@ public class AuthController {
             User user = userService.findByEmail(userDetails.getUsername())
                     .orElseThrow(() -> new RuntimeException("User entity not found after authentication"));
 
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
+            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, null);
 
             return ResponseEntity.ok(new TokenResponseDto(accessToken, refreshToken.getToken()));
         } catch (AuthenticationException ex) {
@@ -96,7 +97,7 @@ public class AuthController {
                         "id", u.getId(),
                         "username", u.getUsername(),
                         "email", u.getEmail(),
-                        "roles", u.getRoles().stream().map(r -> r.getName()).toList()
+                        "roles", u.getRoles().stream().map(Role::getName).toList()
                 )))
                 .orElseGet(() -> ResponseEntity.status(404).body(Map.of("error", "User not found")));
     }
