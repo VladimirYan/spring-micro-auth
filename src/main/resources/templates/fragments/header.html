@@ -1,0 +1,23 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div th:fragment="header">
+    <nav class="navbar navbar-expand-lg navbar-light bg-light mb-4">
+        <div class="container">
+            <a class="navbar-brand" th:href="@{/}">AuthService</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item"><a class="nav-link" th:href="@{/ui/register}">Register</a></li>
+                    <li class="nav-item"><a class="nav-link" th:href="@{/ui/login}">Login</a></li>
+                    <li class="nav-item"><a class="nav-link" th:href="@{/ui/me}">Profile</a></li>
+                    <li class="nav-item"><a class="nav-link" th:href="@{/ui/sessions}">Sessions</a></li>
+                    <li class="nav-item"><a class="nav-link" th:href="@{/ui/forgot-password}">Forgot password</a></li>
+                    <li class="nav-item"><a class="nav-link" th:href="@{/ui/admin/users}">Admin</a></li>
+                </ul>
+                <span th:if="${#httpServletRequest.getSession(false)?.getAttribute('userEmail') != null}">
+            <small th:text="${#httpServletRequest.getSession(false).getAttribute('userEmail')}"></small>
+          </span>
+            </div>
+        </div>
+    </nav>
+</div>
+</html>

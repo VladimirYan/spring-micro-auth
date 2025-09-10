@@ -7,6 +7,9 @@ import com.example.entity.User;
 import com.example.security.JwtUtils;
 import com.example.service.RefreshTokenService;
 import com.example.service.UserService;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +40,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto req) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequestDto req, HttpServletResponse response) {
         try {
             Authentication authentication = authManager.authenticate(
                     new UsernamePasswordAuthenticationToken(req.getUsernameOrEmail(), req.getPassword())
@@ -51,26 +54,63 @@ public class AuthController {
             User user = userService.findByEmail(userDetails.getUsername())
                     .orElseThrow(() -> new RuntimeException("User entity not found after authentication"));
 
-            RefreshToken refreshToken = refreshTokenService.createRefreshToken(user, null);
+            // create refresh token (raw + hashed saved)
+            String userAgent = ""; // if request available, pass header; else empty
+            // if you have HttpServletRequest available, use request.getHeader("User-Agent")
+            RefreshCreateResult res = refreshTokenService.createRefreshToken(user, userAgent);
 
-            return ResponseEntity.ok(new TokenResponseDto(accessToken, refreshToken.getToken()));
+            // set HttpOnly cookie with raw token
+            Cookie cookie = new Cookie(REFRESH_COOKIE_NAME, res.getRawToken());
+            cookie.setHttpOnly(true);
+            cookie.setSecure(false); // set true in production (HTTPS)
+            cookie.setPath("/");
+            cookie.setMaxAge((int) (refreshTokenService.getRefreshTokenDurationMs() / 1000));
+            response.addCookie(cookie);
+
+            return ResponseEntity.ok(Map.of("accessToken", accessToken));
         } catch (AuthenticationException ex) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid credentials"));
         }
     }
 
     @PostMapping("/refresh")
-    public ResponseEntity<?> refresh(@Valid @RequestBody RefreshRequestDto req) {
-        String requestToken = req.getRefreshToken();
-        return refreshTokenService.findByToken(requestToken)
-                .map(refreshTokenService::verifyExpiration)
-                .map(RefreshToken::getUser)
-                .map(user -> {
-                    UserDetails userDetails = userService.loadUserByUsername(user.getEmail());
-                    String newAccessToken = jwtUtils.generateAccessToken(userDetails);
-                    return ResponseEntity.ok(Map.of("accessToken", newAccessToken));
-                })
-                .orElseGet(() -> ResponseEntity.status(403).body(Map.of("error", "Refresh token is not in database")));
+    public ResponseEntity<?> refresh(@RequestBody(required = false) RefreshRequestDto body,
+                                     HttpServletRequest request,
+                                     HttpServletResponse response) {
+        // 1. try cookie
+        String raw = null;
+        if (request.getCookies() != null) {
+            for (Cookie c : request.getCookies()) {
+                if (REFRESH_COOKIE_NAME.equals(c.getName())) {
+                    raw = c.getValue();
+                }
+            }
+        }
+
+        if (raw == null && body != null) {
+            raw = body.getRefreshToken();
+        }
+        if (raw == null) {
+            return ResponseEntity.status(400).body(Map.of("error", "No refresh token provided"));
+        }
+
+        try {
+            RefreshCreateResult newToken = refreshTokenService.rotateRefreshToken(raw);
+            User user = newToken.getRefreshTokenEntity().getUser();
+            UserDetails ud = userService.loadUserByUsername(user.getEmail());
+            String newAccess = jwtUtils.generateAccessToken(ud);
+
+            Cookie cookie = new Cookie(REFRESH_COOKIE_NAME, newToken.getRawToken());
+            cookie.setHttpOnly(true);
+            cookie.setSecure(false); // true in prod
+            cookie.setPath("/");
+            cookie.setMaxAge((int) (refreshTokenService.getRefreshTokenDurationMs() / 1000));
+            response.addCookie(cookie);
+
+            return ResponseEntity.ok(Map.of("accessToken", newAccess));
+        } catch (RuntimeException ex) {
+            return ResponseEntity.status(403).body(Map.of("error", ex.getMessage()));
+        }
     }
 
     @PostMapping("/logout")

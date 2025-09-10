@@ -1,0 +1,10 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org">
+<div th:fragment="footer">
+    <footer class="pt-4 mt-4 border-top">
+        <div class="container">
+            <p class="text-muted">© Auth Service — <span th:text="${#dates.format(#dates.createNow(), 'yyyy')}"></span></p>
+        </div>
+    </footer>
+</div>
+</html>
